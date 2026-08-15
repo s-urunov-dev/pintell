@@ -1,0 +1,110 @@
+{% extends "admin/base_site.html" %}
+{% comment %}
+Qdrant's own numbers on the left, ours on the right, never averaged.
+
+They disagree while an import is in flight (upserts are asynchronous) and they
+disagree permanently if the collection was dropped without clearing the
+bookkeeping table. Showing one merged "index size" would hide exactly the
+state an operator opened this page to find.
+{% endcomment %}
+
+{% block content %}
+<div id="content-main">
+
+  <h1>{{ title }}</h1>
+
+  <div class="module">
+    <h2>Collection — {{ collection_name }}</h2>
+    <table>
+      <tbody>
+        <tr>
+          <th>Connection</th>
+          <td>
+            {% if collection.connected %}
+              <span style="color:#0a7c2f;">connected</span>
+            {% else %}
+              <span style="color:#b00020;">unreachable</span>
+              {% if collection.error %}<br><code>{{ collection.error }}</code>{% endif %}
+            {% endif %}
+          </td>
+        </tr>
+        <tr>
+          <th>Collection</th>
+          <td>
+            {% if collection.exists %}
+              present · status <code>{{ collection.status }}</code>
+            {% else %}
+              not created yet — run
+              <code>manage.py archive_to_qdrant</code>
+            {% endif %}
+          </td>
+        </tr>
+        <tr><th>Points</th><td>{{ collection.points }}</td></tr>
+        <tr>
+          <th>Indexed vectors</th>
+          <td>
+            {{ collection.indexed_vectors }}
+            {# Qdrant indexes in the background: a number below `points` during
+               an import is normal, and a search still finds unindexed points
+               by exact scan. Said here so nobody treats it as a fault. #}
+            <span class="help">— catches up in the background after an import</span>
+          </td>
+        </tr>
+        <tr>
+          <th>Vector</th>
+          <td>{{ collection.vector_size }}d · {{ collection.distance }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="module">
+    <h2>Archive coverage</h2>
+    <table>
+      <tbody>
+        <tr>
+          <th>Embeddings</th>
+          <td>
+            {% if embeddings_enabled %}
+              enabled · <code>{{ embed_model }}</code>
+            {% else %}
+              <span style="color:#b00020;">disabled</span>
+              — set <code>RAG_ENABLED</code> and an API key
+            {% endif %}
+          </td>
+        </tr>
+        <tr><th>Pipeline version</th><td>v{{ pipeline_version }}</td></tr>
+        <tr>
+          <th>Notices</th>
+          <td>{{ archive.notices_indexed|default:0 }} / {{ archive.notices_total|default:0 }}</td>
+        </tr>
+        <tr>
+          <th>Documents</th>
+          <td>{{ archive.documents_indexed|default:0 }} / {{ archive.documents_total|default:0 }}</td>
+        </tr>
+        <tr><th>Coverage</th><td>{{ coverage|floatformat:1 }}%</td></tr>
+        <tr><th>Failed sources</th><td>{{ archive.failed|default:0 }}</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  {% if failures %}
+  <div class="module">
+    <h2>Recent failures</h2>
+    <table>
+      <thead><tr><th>Source</th><th>When</th><th>Error</th></tr></thead>
+      <tbody>
+        {% for row in failures %}
+          <tr>
+            <td><code>{{ row.source_key }}</code></td>
+            <td>{{ row.indexed_at }}</td>
+            <td><code>{{ row.last_error|truncatechars:200 }}</code></td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

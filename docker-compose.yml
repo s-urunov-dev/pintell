@@ -1,0 +1,466 @@
+# Pintell — full stack in one command:
+#   cp .env.example .env && docker compose up --build
+#
+# Services: postgres, redis, django (gunicorn), celery worker, celery beat,
+# and the React build served by nginx (which also proxies /api to Django).
+
+name: tender-aggregator
+
+x-django-env: &django-env
+  DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?set DJANGO_SECRET_KEY in .env}
+  DJANGO_DEBUG: ${DJANGO_DEBUG:-false}
+  DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,backend}
+  DJANGO_LOG_LEVEL: ${DJANGO_LOG_LEVEL:-INFO}
+  DJANGO_TIME_ZONE: ${DJANGO_TIME_ZONE:-UTC}
+  CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001,http://localhost:5173,http://localhost:5174}
+  CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001,http://localhost:5174}
+  POSTGRES_DB: ${POSTGRES_DB:-tenders}
+  POSTGRES_USER: ${POSTGRES_USER:-tenders}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+  POSTGRES_HOST: db
+  POSTGRES_PORT: 5432
+  REDIS_URL: redis://redis:6379/0
+  CELERY_BROKER_URL: redis://redis:6379/0
+  CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-}
+  WORLDBANK_API_URL: ${WORLDBANK_API_URL:-https://search.worldbank.org/api/v2/procnotices}
+  WORLDBANK_PROJECTS_API_URL: ${WORLDBANK_PROJECTS_API_URL:-https://search.worldbank.org/api/v2/projects}
+  WORLDBANK_DOCUMENTS_API_URL: ${WORLDBANK_DOCUMENTS_API_URL:-https://search.worldbank.org/api/v3/wds}
+  FOCUS_COUNTRY_GROUP: ${FOCUS_COUNTRY_GROUP:-cis_plus}
+  FOCUS_OPEN_ONLY: ${FOCUS_OPEN_ONLY:-true}
+  # On, the country group also bounds what is stored — see settings.py.
+  INGEST_FOCUS_ONLY: ${INGEST_FOCUS_ONLY:-true}
+  ENRICHMENT_ENABLED: ${ENRICHMENT_ENABLED:-true}
+  ENRICHMENT_INTERVAL_MINUTES: ${ENRICHMENT_INTERVAL_MINUTES:-15}
+  AI_ENABLED: ${AI_ENABLED:-true}
+  ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+  AI_MODEL: ${AI_MODEL:-claude-opus-5}
+  # The chat's model when it should differ from extraction's. Empty = MODEL.
+  AI_CHAT_MODEL: ${AI_CHAT_MODEL:-}
+  # Two tiers, chosen by how hard the question is (D60). Empty means no
+  # routing — the deliberate default, because Haiku's Uzbek was measured and
+  # was not good enough. Recommended fast tier: claude-sonnet-5.
+  AI_CHAT_MODEL_FAST: ${AI_CHAT_MODEL_FAST:-}
+  AI_CHAT_MODEL_DEEP: ${AI_CHAT_MODEL_DEEP:-}
+  AI_CHAT_EFFORT_FAST: ${AI_CHAT_EFFORT_FAST:-low}
+  AI_CHAT_EFFORT_DEEP: ${AI_CHAT_EFFORT_DEEP:-medium}
+  # Default false: the key is for compliance extraction, and the classifier
+  # has a schedule over the whole mirror. See .env.example.
+  AI_CLASSIFY_ENABLED: ${AI_CLASSIFY_ENABLED:-false}
+  COMPLIANCE_AUTO_EXTRACT: ${COMPLIANCE_AUTO_EXTRACT:-true}
+  COMPLIANCE_AUTO_BATCH_SIZE: ${COMPLIANCE_AUTO_BATCH_SIZE:-25}
+  AI_CLASSIFY_RULE_THRESHOLD: ${AI_CLASSIFY_RULE_THRESHOLD:-0.55}
+  AI_CLASSIFY_EFFORT: ${AI_CLASSIFY_EFFORT:-low}
+  AI_CLASSIFY_BATCH_SIZE: ${AI_CLASSIFY_BATCH_SIZE:-40}
+  AI_ENRICH_EFFORT: ${AI_ENRICH_EFFORT:-low}
+  AI_ENRICH_BATCH_SIZE: ${AI_ENRICH_BATCH_SIZE:-10}
+  AI_ENRICH_MAX_SEARCHES: ${AI_ENRICH_MAX_SEARCHES:-3}
+  # Web-search provider for the people + website lookups. Gemini's free tier
+  # bundles the Google Search grounding, so `auto` prefers it.
+  AI_PROVIDER: ${AI_PROVIDER:-auto}
+  GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+  GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
+  GEMINI_TIMEOUT: ${GEMINI_TIMEOUT:-120}
+  # Document harvesting. HARVEST_DIR points at the shared volume rather than
+  # the repo path, so what is collected survives a rebuild — this is the one
+  # directory in the stack whose contents cannot be fetched again later.
+  HARVEST_ENABLED: ${HARVEST_ENABLED:-true}
+  HARVEST_DIR: /app/data/harvest
+  HARVEST_BATCH_SIZE: ${HARVEST_BATCH_SIZE:-25}
+  HARVEST_INTERVAL_MINUTES: ${HARVEST_INTERVAL_MINUTES:-10}
+  HARVEST_HTTP_TIMEOUT: ${HARVEST_HTTP_TIMEOUT:-60}
+  HARVEST_MAX_BYTES: ${HARVEST_MAX_BYTES:-62914560}
+  HARVEST_PER_HOST_DELAY: ${HARVEST_PER_HOST_DELAY:-1.5}
+  HARVEST_MAX_TEXT_CHARS: ${HARVEST_MAX_TEXT_CHARS:-400000}
+  HARVEST_RETRY_BASE_MINUTES: ${HARVEST_RETRY_BASE_MINUTES:-120}
+  HARVEST_RETRY_MAX_DAYS: ${HARVEST_RETRY_MAX_DAYS:-3}
+  SYNC_ROWS_PER_PAGE: ${SYNC_ROWS_PER_PAGE:-100}
+  SYNC_MAX_PAGES: ${SYNC_MAX_PAGES:-25}
+  SYNC_FOCUS_PAGES_PER_COUNTRY: ${SYNC_FOCUS_PAGES_PER_COUNTRY:-2}
+  SYNC_INTERVAL_MINUTES: ${SYNC_INTERVAL_MINUTES:-30}
+  SYNC_HTTP_TIMEOUT: ${SYNC_HTTP_TIMEOUT:-30}
+  SYNC_MAX_OFFSET: ${SYNC_MAX_OFFSET:-100000}
+  INITIAL_SYNC_ENABLED: ${INITIAL_SYNC_ENABLED:-true}
+  BACKFILL_ENABLED: ${BACKFILL_ENABLED:-true}
+  BACKFILL_PAGES_PER_RUN: ${BACKFILL_PAGES_PER_RUN:-40}
+  BACKFILL_INTERVAL_MINUTES: ${BACKFILL_INTERVAL_MINUTES:-5}
+  BACKFILL_PAGE_DELAY: ${BACKFILL_PAGE_DELAY:-0.25}
+  API_THROTTLE_ANON: ${API_THROTTLE_ANON:-120/min}
+  ADMIN_LOGIN_THROTTLE: ${ADMIN_LOGIN_THROTTLE:-10/min}
+  ADMIN_ACTION_THROTTLE: ${ADMIN_ACTION_THROTTLE:-30/min}
+  SESSION_COOKIE_AGE: ${SESSION_COOKIE_AGE:-43200}
+  SESSION_EXPIRE_AT_BROWSER_CLOSE: ${SESSION_EXPIRE_AT_BROWSER_CLOSE:-false}
+  SESSION_COOKIE_SAMESITE: ${SESSION_COOKIE_SAMESITE:-Lax}
+  CSRF_COOKIE_SAMESITE: ${CSRF_COOKIE_SAMESITE:-Lax}
+  # Secure cookies are the right default and stay on for any real deployment.
+  # They are settable here because with DEBUG off the stack marks every cookie
+  # Secure, which browsers tolerate on localhost but no plain-HTTP client does
+  # — an http:// host deployment or a curl/script client cannot hold a session
+  # at all until these are turned off deliberately.
+  SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-true}
+  CSRF_COOKIE_SECURE: ${CSRF_COOKIE_SECURE:-true}
+  SECURE_SSL_REDIRECT: ${SECURE_SSL_REDIRECT:-false}
+  # Semantic index. Off by default: enabling it starts spending an embedding
+  # quota, and a key is permission to spend rather than an instruction to.
+  RAG_ENABLED: ${RAG_ENABLED:-false}
+  QDRANT_URL: ${QDRANT_URL:-http://qdrant:6333}
+  QDRANT_API_KEY: ${QDRANT_API_KEY:-}
+  RAG_COLLECTION: ${RAG_COLLECTION:-notice_chunks}
+  # The collection's width and the request's width, from one variable. See
+  # settings.py — a mismatch is a rejected upsert at best.
+  RAG_VECTOR_SIZE: ${RAG_VECTOR_SIZE:-768}
+  RAG_EMBED_MODEL: ${RAG_EMBED_MODEL:-gemini-embedding-001}
+  RAG_EMBED_API_KEY: ${RAG_EMBED_API_KEY:-}
+  RAG_EMBED_BATCH: ${RAG_EMBED_BATCH:-100}
+  RAG_EMBED_MAX_RETRIES: ${RAG_EMBED_MAX_RETRIES:-5}
+  # **Texts** per minute, not HTTP calls — the provider counts each text in a
+  # batch as a request. 0 = unpaced. Set ~95 on a free-tier key (cap is 100).
+  RAG_EMBED_TEXTS_PER_MINUTE: ${RAG_EMBED_TEXTS_PER_MINUTE:-0}
+  # Requests in flight at once. Raise only with the pace lifted — see settings.
+  RAG_EMBED_CONCURRENCY: ${RAG_EMBED_CONCURRENCY:-1}
+  RAG_UPSERT_BATCH: ${RAG_UPSERT_BATCH:-256}
+  RAG_CHUNK_CHARS: ${RAG_CHUNK_CHARS:-900}
+  RAG_SEARCH_LIMIT: ${RAG_SEARCH_LIMIT:-5}
+  # Passages the chat shows the model — its own budget, not the search
+  # box's page size.
+  RAG_CHAT_PASSAGES: ${RAG_CHAT_PASSAGES:-16}
+  RAG_SCORE_THRESHOLD: ${RAG_SCORE_THRESHOLD:-0.5}
+  # Keeps newly synced notices searchable between hand-run imports. Bounded
+  # per run, notices only — see apps/rag_indexer/tasks.py.
+  RAG_AUTO_INDEX: ${RAG_AUTO_INDEX:-true}
+  RAG_AUTO_INDEX_INTERVAL_MINUTES: ${RAG_AUTO_INDEX_INTERVAL_MINUTES:-20}
+  RAG_AUTO_INDEX_LIMIT: ${RAG_AUTO_INDEX_LIMIT:-60}
+  RAG_SEARCH_THROTTLE: ${RAG_SEARCH_THROTTLE:-30/min}
+  # The answer to a question already answered (D57). Its own collection — a
+  # stored answer is not a passage and can never be cited. An answer resting
+  # on a database row ("22 tenders are open") is never cached at any TTL.
+  RAG_CACHE_ENABLED: ${RAG_CACHE_ENABLED:-true}
+  RAG_CACHE_COLLECTION: ${RAG_CACHE_COLLECTION:-chat_cache}
+  RAG_CACHE_THRESHOLD: ${RAG_CACHE_THRESHOLD:-0.92}
+  RAG_CACHE_TTL_SECONDS: ${RAG_CACHE_TTL_SECONDS:-21600}
+  RAG_CACHE_MAX_ENTRIES: ${RAG_CACHE_MAX_ENTRIES:-5000}
+  # Dense + keyword, fused by rank rather than score (D58). Without it a
+  # tender reference finds notices about the words in it, never the notice.
+  RAG_HYBRID: ${RAG_HYBRID:-true}
+  RAG_RRF_K: ${RAG_RRF_K:-60}
+  RAG_HYBRID_CANDIDATES: ${RAG_HYBRID_CANDIDATES:-20}
+  # Rows the keyword arm ranks. Its cost follows the match count, not the
+  # result count — 570 ms unbounded, ~250 ms here. See .env.example.
+  RAG_LEXICAL_RANK_CAP: ${RAG_LEXICAL_RANK_CAP:-300}
+  # Rank from the stored `search_vector` column rather than recomputing it
+  # per row. **A cutover, not a preference**: the column is added empty by
+  # tenders/0023 and filled by `manage.py backfill_search_vector`. Until
+  # that reports 0 remaining, a search reading it returns *fewer notices*,
+  # not slower ones. Off until the backfill is done — see settings.py.
+  RAG_LEXICAL_STORED_VECTOR: ${RAG_LEXICAL_STORED_VECTOR:-false}
+  # How often to keep the vector store's pages resident, in minutes.
+  # 0 turns it off. Costs no embedding — see apps/rag_indexer/tasks.py.
+  RAG_WARM_INTERVAL_MINUTES: ${RAG_WARM_INTERVAL_MINUTES:-5}
+  # `none` | `cohere` | `local`. Off: `local` needs torch in the image and
+  # `cohere` needs a third party nobody has asked the legal side about (D59).
+  RAG_RERANK_BACKEND: ${RAG_RERANK_BACKEND:-none}
+  RAG_RERANK_MODEL: ${RAG_RERANK_MODEL:-bge-reranker-v2-m3}
+  RAG_RERANK_API_KEY: ${RAG_RERANK_API_KEY:-}
+  RAG_RERANK_TIMEOUT: ${RAG_RERANK_TIMEOUT:-15}
+  RAG_RERANK_TOP_N: ${RAG_RERANK_TOP_N:-5}
+  RAG_PASSAGE_MAX_CHARS: ${RAG_PASSAGE_MAX_CHARS:-1200}
+  # Headings and whole tables for what a vendor uploads (D61). Uploads only.
+  RAG_STRUCTURAL_CHUNKING: ${RAG_STRUCTURAL_CHUNKING:-true}
+  DJANGO_SUPERUSER_USERNAME: ${DJANGO_SUPERUSER_USERNAME:-}
+  DJANGO_SUPERUSER_EMAIL: ${DJANGO_SUPERUSER_EMAIL:-}
+  DJANGO_SUPERUSER_PASSWORD: ${DJANGO_SUPERUSER_PASSWORD:-}
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    # The image ships the upstream defaults, which assume a spinning disk and a
+    # machine that might be a laptop. Measured on the deployed host
+    # (4 vCPU, 7.8 GB, SSD) on 2026-08-14: `random_page_cost` was 4 and
+    # `effective_io_concurrency` 1, both of which describe hardware this is not.
+    #
+    # **None of this is the search bottleneck** — that is `ts_rank` recomputing
+    # a tsvector per matching row (see D58 and the note in settings.py), which
+    # is CPU and no memory setting touches it. These are correct-by-default
+    # values for a dedicated database host, not a fix for that.
+    #
+    # `shared_buffers` is sized against this container's own `mem_limit` below
+    # rather than against host RAM — 25% of 2 GB. Raising it means raising the
+    # limit too, or Postgres is told it may cache more than it is allowed to
+    # allocate, which ends as an OOM kill rather than as slow queries.
+    command:
+      - postgres
+      - -c
+      - shared_buffers=512MB
+      - -c
+      - effective_cache_size=3GB
+      - -c
+      - work_mem=8MB
+      - -c
+      - maintenance_work_mem=256MB
+      # SSD: a random page costs almost what a sequential one does, and the
+      # device happily has hundreds of requests in flight. Left at the
+      # rotational defaults, the planner systematically over-prices index scans.
+      - -c
+      - random_page_cost=1.1
+      - -c
+      - effective_io_concurrency=200
+      - -c
+      - wal_buffers=16MB
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-tenders}
+      POSTGRES_USER: ${POSTGRES_USER:-tenders}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    # Every service in this file carries a limit, and they add up to less than
+    # the host's RAM on purpose: the stack at full stretch cannot OOM the box.
+    # `deploy/deploy.sh` only recreates the five *built* services, so a change
+    # here reaches the server on a deliberate `docker compose up -d db` and not
+    # on the next deploy — which for the database is the right way round.
+    mem_limit: 2g
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-tenders} -d ${POSTGRES_DB:-tenders}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    # Nothing in the stack needs this from outside the compose network; the
+    # mapping exists only so a developer's SQL client (PyCharm, psql) can reach
+    # it. Bound to 127.0.0.1 deliberately — a bare "5432:5432" would put the
+    # database on every interface of the machine, LAN included.
+    ports:
+      - "127.0.0.1:${POSTGRES_HOST_PORT:-5432}:5432"
+    expose:
+      - "5432"
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--save", "60", "1", "--loglevel", "warning"]
+    # 6 MB in use. The cap bounds the damage a leak could do; there is
+    # deliberately no Redis `maxmemory` beside it, because this is the
+    # Celery broker and an eviction policy drops queued tasks in silence.
+    mem_limit: 512m
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    expose:
+      - "6379"
+
+  # Vector store for the semantic index (apps/rag_indexer).
+  #
+  # **Nothing depends_on this, deliberately.** Every vector in it is
+  # rebuildable from the mirror by `manage.py archive_to_qdrant`, so it is a
+  # cache — and a cache that can hold up the API's start-up is worse than no
+  # cache. A container that is down degrades search to the Postgres full-text
+  # fallback and touches neither the tender mirror nor a compliance verdict.
+  #
+  # No healthcheck for a plainer reason: the image ships no shell and no curl
+  # to probe itself with. Reachability is reported where it is actually
+  # actionable — the console's index-status badge and
+  # `manage.py archive_to_qdrant --status`.
+  qdrant:
+    # Pinned rather than floating: the on-disk storage format belongs to a
+    # version, and an unattended `latest` pull that upgrades it is the one way
+    # this container stops being a throwaway cache.
+    #
+    # **Kept in step with `qdrant-client` in requirements.txt.** The client
+    # refuses a major mismatch and warns on more than one minor of drift, so a
+    # server pinned behind the pip resolver's newest client is a warning on
+    # every single call — which is how a real incompatibility later goes unread.
+    #
+    # **Changing this tag requires dropping the volume**, and there is no
+    # in-place upgrade to reach for. A newer server refuses to load storage a
+    # meaningfully older one wrote (v1.19 on v1.12 storage: "unknown variant
+    # `on_disk`") and the container then restart-loops. The recovery is the
+    # cheap one, which is the whole reason this service is built as a cache:
+    #
+    #   docker compose stop qdrant && docker compose rm -f qdrant
+    #   docker volume rm tender-aggregator_qdrant_data
+    #   docker compose up -d qdrant
+    #   docker compose exec backend python manage.py archive_to_qdrant
+    image: ${QDRANT_IMAGE:-qdrant/qdrant:v1.19.0}
+    restart: unless-stopped
+    # 95 MB resident, but it memory-maps a 593 MB collection and that grows
+    # with the corpus. Generous because a cache that gets OOM-killed mid
+    # search degrades the chat rather than merely running slower.
+    mem_limit: 2g
+    environment:
+      QDRANT__LOG_LEVEL: ${QDRANT_LOG_LEVEL:-INFO}
+      # QDRANT__SERVICE__API_KEY is **not** set here, and it must not be set to
+      # an empty string. Compose has no way to omit a variable conditionally,
+      # and an empty value does not mean "no key" to Qdrant — it switches
+      # authentication *on* and then rejects every request with 401, including
+      # the ones from this stack, which is how this line was found.
+      #
+      # To require a key: uncomment the line below and set QDRANT_API_KEY in
+      # .env to the same value, so the client sends what the server demands.
+      # Two edits rather than one on purpose — a half-configured pair is the
+      # state where an operator believes the store is protected and it is not.
+      #
+      #   QDRANT__SERVICE__API_KEY: ${QDRANT_API_KEY:?set QDRANT_API_KEY in .env}
+      #
+      # Without one the store is open to whatever can route to it, which is
+      # this compose network and the loopback mapping below — and nothing else,
+      # as long as that mapping stays bound to 127.0.0.1.
+    volumes:
+      - qdrant_data:/qdrant/storage
+    ports:
+      # 127.0.0.1 only: 6333 serves an unauthenticated web dashboard unless
+      # QDRANT_API_KEY is set, and the mapping exists so a developer can open
+      # it — not so the LAN can. The stack itself reaches it over the compose
+      # network on the port below.
+      - "127.0.0.1:${QDRANT_HOST_PORT:-6333}:6333"
+    expose:
+      - "6333"
+      - "6334"
+
+  backend:
+    build:
+      context: ./backend
+      # Stamps the image with the commit it was built from. Set by
+      # deploy/deploy.sh, which then reads it back out of the running container
+      # — see backend/Dockerfile for why that check exists. `unknown` on a
+      # local build, where nobody is asking the question.
+      args:
+        GIT_SHA: ${GIT_SHA:-unknown}
+    restart: unless-stopped
+    # 222 MB observed across three gunicorn workers.
+    mem_limit: 1g
+    environment:
+      <<: *django-env
+      CONTAINER_ROLE: web
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      # Shared with the worker, which is what writes here. The API reads the
+      # same blobs when serving a mirrored document.
+      - harvest_data:/app/data/harvest
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/api/health/"]
+      interval: 15s
+      timeout: 5s
+      start_period: 40s
+      retries: 5
+
+  celery-worker:
+    build:
+      context: ./backend
+      # The service this stamp was added for: a worker on a stale image is
+      # invisible from the outside. See backend/Dockerfile.
+      args:
+        GIT_SHA: ${GIT_SHA:-unknown}
+    restart: unless-stopped
+    # 267 MB observed, and the widest limit of the Python services: this is
+    # where PDF parsing and embedding batches run, so it is the one that
+    # can actually grow under a job rather than under traffic.
+    mem_limit: 1536m
+    environment:
+      <<: *django-env
+      CONTAINER_ROLE: worker
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_started
+    command:
+      - celery
+      - -A
+      - config
+      - worker
+      - --loglevel=info
+      - --concurrency=2
+      - --max-tasks-per-child=50
+    volumes:
+      # The harvester runs here: every mirrored TOR and bidding document is
+      # written to this volume.
+      - harvest_data:/app/data/harvest
+    healthcheck:
+      # CMD-SHELL so $HOSTNAME resolves to this worker's node name.
+      test: ["CMD-SHELL", "celery -A config inspect ping -d celery@$$HOSTNAME"]
+      interval: 30s
+      timeout: 10s
+      start_period: 30s
+      retries: 3
+
+  celery-beat:
+    build:
+      context: ./backend
+      args:
+        GIT_SHA: ${GIT_SHA:-unknown}
+    restart: unless-stopped
+    # 77 MB observed. It emits schedule ticks and nothing else.
+    mem_limit: 256m
+    environment:
+      <<: *django-env
+      CONTAINER_ROLE: beat
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command:
+      - celery
+      - -A
+      - config
+      - beat
+      - --loglevel=info
+      - --schedule=/tmp/celerybeat-schedule
+
+  # Public, anonymous tender browser.
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # Empty: the app calls /api on its own origin, proxied by nginx.
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-}
+    restart: unless-stopped
+    # 5 MB: nginx serving a built bundle.
+    mem_limit: 128m
+    depends_on:
+      backend:
+        condition: service_started
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+
+  # Staff-only operator console — a separate deployable so it can be kept off
+  # the public network entirely (drop the `ports` mapping, or bind it to an
+  # internal interface, and it disappears from the internet).
+  admin-frontend:
+    build:
+      context: ./admin-frontend
+      args:
+        VITE_API_BASE_URL: ${ADMIN_VITE_API_BASE_URL:-}
+        VITE_PUBLIC_SITE_URL: ${PUBLIC_SITE_URL:-http://localhost:3000}
+    restart: unless-stopped
+    # 5 MB: nginx serving a built bundle.
+    mem_limit: 128m
+    depends_on:
+      backend:
+        condition: service_started
+    ports:
+      # Bind to 127.0.0.1 to keep the console off the LAN:
+      #   "127.0.0.1:${ADMIN_FRONTEND_PORT:-3001}:80"
+      - "${ADMIN_FRONTEND_PORT:-3001}:80"
+
+volumes:
+  postgres_data:
+  redis_data:
+  # The vector store. Unlike harvest_data this one *is* disposable: dropping it
+  # costs a re-run of `archive_to_qdrant` and nothing else. It is a named
+  # volume anyway, because that re-run is hours of metered embedding calls.
+  qdrant_data:
+  # The mirrored documents. Unlike the other two this one holds data that has
+  # no upstream to re-fetch from: the borrower links it was collected through
+  # stop answering once their tenders close. Back it up accordingly.
+  harvest_data:

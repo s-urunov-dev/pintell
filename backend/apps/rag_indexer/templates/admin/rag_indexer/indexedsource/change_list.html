@@ -1,0 +1,8 @@
+{% extends "admin/change_list.html" %}
+{# The rows answer "what happened to this source"; the status page answers
+   "is the store alive and how full is it", which is a question about the
+   deployment rather than about any row — so it gets its own page. #}
+{% block object-tools-items %}
+  <li><a href="status/" class="viewlink">Index status</a></li>
+  {{ block.super }}
+{% endblock %}

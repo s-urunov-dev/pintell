@@ -1,0 +1,190 @@
+# Test everything. Nothing here deploys — this is a test-only gate.
+#
+# What runs where:
+#   * push to any branch  → the three jobs below, nothing else
+
+name: CI
+
+on:
+  # Every branch, and **no `pull_request:` trigger**. Adding one would run the
+  # whole suite twice on every PR in a single-owner repository: the checks a
+  # pull request displays are the checks of the commit at its head, which the
+  # push trigger has already produced.
+  push:
+    branches: ["**"]
+
+concurrency:
+  # Per branch, so a second push supersedes the first.
+  group: ci-cd-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend-tests:
+    name: Django suite (1,145 tests)
+    runs-on: ubuntu-latest
+
+    services:
+      # The same major versions the stack runs in production. Several tests in
+      # apps.rag_indexer exercise the Postgres full-text fallback and cannot
+      # pass on a sqlite override, which is why this is a real database rather
+      # than a settings switch.
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: tenders
+          POSTGRES_USER: tenders
+          POSTGRES_PASSWORD: tenders
+        options: >-
+          --health-cmd "pg_isready -U tenders -d tenders"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+        ports:
+          - 6379:6379
+
+    env:
+      DJANGO_SECRET_KEY: ci-only-not-a-real-secret
+      DJANGO_DEBUG: "false"
+      # Django's test runner appends "testserver" itself; this covers the
+      # handful of tests that build absolute URLs.
+      DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1,testserver
+      POSTGRES_DB: tenders
+      POSTGRES_USER: tenders
+      POSTGRES_PASSWORD: tenders
+      POSTGRES_HOST: 127.0.0.1
+      POSTGRES_PORT: "5432"
+      REDIS_URL: redis://127.0.0.1:6379/0
+      CELERY_BROKER_URL: redis://127.0.0.1:6379/0
+      # **No ANTHROPIC_API_KEY and no GEMINI_API_KEY, deliberately.**
+      # test_categories.AiAvailabilityTests.test_missing_key_disables_ai reads
+      # the ambient environment with no override_settings, so a key present in
+      # CI would fail it — the same way it fails on the deployed server. Do not
+      # add provider keys here to "make the AI paths testable": nothing in the
+      # suite calls a provider, and every AI path is written to degrade.
+      AI_ENABLED: "false"
+      RAG_ENABLED: "false"
+      # Network calls have no place in a test run. Every enrichment and sync
+      # path is written to degrade rather than raise, but a disabled flag is a
+      # cheaper guarantee than trusting that.
+      ENRICHMENT_ENABLED: "false"
+      INITIAL_SYNC_ENABLED: "false"
+      BACKFILL_ENABLED: "false"
+      HARVEST_ENABLED: "false"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          # Pinned to the Dockerfile's base image. A suite that passes on a
+          # different interpreter than the one shipped proves less than it
+          # looks like it does.
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install dependencies
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Check for missing migrations
+        working-directory: backend
+        # A model changed without its migration is a deploy that half-applies:
+        # the image starts, the entrypoint migrates nothing, and the first query
+        # against the new column is the error. Cheaper to catch here.
+        run: python manage.py makemigrations --check --dry-run
+
+      - name: Django system checks (deploy profile)
+        working-directory: backend
+        # --deploy adds the production-only checks (cookies, SSL, secret key).
+        # Warnings are expected on this host; only errors fail the step.
+        run: python manage.py check --deploy --fail-level ERROR
+
+      - name: Run the test suite
+        working-directory: backend
+        # **Serial, deliberately, after trying `--parallel auto`.**
+        #
+        # Parallel was faster and, the first time something genuinely failed,
+        # unusable: Django's parallel runner pickles failures back to the
+        # parent, one real failure carried a traceback that would not pickle,
+        # the worker died mid-run, and the report was `TypeError: cannot
+        # pickle 'traceback' object` plus seven unrelated tests failing with
+        # `database "test_tenders_2" does not exist`. None of those seven was
+        # broken and the one that was did not stand out.
+        #
+        # This job's entire value is saying which thing broke, and a couple of
+        # minutes is a cheap price for that.
+        run: python manage.py test --verbosity 2
+
+  frontend-build:
+    name: ${{ matrix.app }} (typecheck + build)
+    runs-on: ubuntu-latest
+    strategy:
+      # Both are built even when one fails: knowing whether a shared type broke
+      # one app or both is the first thing anyone asks.
+      fail-fast: false
+      matrix:
+        app: [frontend, admin-frontend]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: ${{ matrix.app }}/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ${{ matrix.app }}
+        # `npm ci` rather than `npm install`: the lockfile is the input, and a
+        # resolver that quietly upgrades a dependency mid-pipeline is how a
+        # green CI ships a build nobody tested.
+        run: npm ci
+
+      - name: Typecheck
+        working-directory: ${{ matrix.app }}
+        run: npm run typecheck
+
+      - name: Build
+        working-directory: ${{ matrix.app }}
+        # There is no unit-test runner in either app. `tsc -b && vite build` is
+        # the whole gate, and it is an honest one — it is exactly what the
+        # Dockerfile runs on the server.
+        run: npm run build
+
+  images:
+    name: Docker build (${{ matrix.context }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        context: [backend, frontend, admin-frontend]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build the image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./${{ matrix.context }}
+          push: false
+          # Cached across runs so this job stays a Dockerfile check rather than
+          # a five-minute pip install. The server builds its own images; this
+          # only has to prove the build does not break.
+          cache-from: type=gha,scope=${{ matrix.context }}
+          cache-to: type=gha,scope=${{ matrix.context }},mode=max

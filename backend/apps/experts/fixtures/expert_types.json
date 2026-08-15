@@ -1,0 +1,467 @@
+[
+  {
+    "model": "experts.experttype",
+    "pk": "project-management",
+    "fields": {
+      "name": "Project management",
+      "parent": null,
+      "signal_terms": [],
+      "position": 1
+    }
+  },
+  {
+    "model": "experts.experttype",
+    "pk": "team-leader",
+    "fields": {
+      "name": "Team Leader / Project Director",
+      "parent": "project-management",
+      "signal_terms": ["Team Leader", "TL", "QCBS", "PIU", "PMU"],
+      "position": 1
+    }
+  },
+  {
+    "model": "experts.experttype",
+    "pk": "deputy-team-leader",
+    "fields": {
+      "name": "Deputy Team Leader",
+      "parent": "project-management",
+      "signal_terms": [],
+      "position": 2
+    }
+  },
+  {
+    "model": "experts.experttype",
+    "pk": "project-manager",
+    "fields": {
+      "name": "Project Manager",
+      "parent": "project-management",
+      "signal_terms": ["PMP", "PRINCE2"],
+      "position": 3
+    }
+  },
+  {
+    "model": "experts.experttype",
+    "pk": "monitoring-evaluation-specialist",
+    "fields": {
+      "name": "M&E Specialist",
+      "parent": "project-management",
+      "signal_terms": [
+        "results framework",
+        "logframe",
+        "theory of change",
+        "DLI"
+      ],
+      "position": 4
+    }
+  },
+  {
+    "model": "experts.experttype",
+    "pk": "institutional-development-specialist",
+    "fields": {
+      "name": "Institutional Development Specialist",
+      "parent": "project-management",
+      "signal_terms": ["capacity building", "institutional assessment"],
+      "position": 5
+    }
+  },
+  {
+    "model": "experts.experttype",
+    "pk": "training-capacity-building-specialist",
+    "fields": {
+      "name": "Training / Capacity Building Specialist",
+      "parent": "project-management",
+      "signal_terms": ["training needs assessment", "ToT"],
+      "position": 6
+    }
+  },
+
+  {
+    "model": "experts.experttype",
+    "pk": "procurement-and-contract",
+    "fields": {
+      "name": "Procurement and contract",
+      "parent": null,
+      "signal_terms": [],
+      "position": 2
+    }
+  },
+  {
+    "model": "experts.experttype",
+    "pk": "procurement-specialist",
+    "fields": {
+      "name": "Procurement Specialist",
+      "parent": "procurement-and-contract",
+      "signal_terms": [
+        "STEP",
+        "prior review",
+        "ICB",
+        "NCB",
+        "RFB",
+        "procurement plan"
+      ],
+      "position": 1
+    }
+  },
+  {
+    "model": "experts.experttype",
+    "pk": "contract-management-specialist",
+    "fields": {
+      "name": "Contract Management Specialist",
+      "parent": "procurement-and-contract",
+      "signal_terms": ["contract administration", "variation order"],
+      "position": 2
+    }
+  },
+  {
+    "model": "experts.experttype",
+    "pk": "fidic-claims-specialist",
+    "fields": {
+      "name": "FIDIC / Claims Specialist",
+      "parent": "procurement-and-contract",
+      "signal_terms": [
+        "FIDIC Red Book",
+        "Yellow Book",
+        "DAB",
+        "DAAB",
+        "EOT claim"
+      ],
+      "position": 3
+    }
+  },
+  {
+    "model": "experts.experttype",
+    "pk": "quantity-surveyor",
+    "fields": {
+      "name": "Quantity Surveyor / Cost Estimator",
+      "parent": "procurement-and-contract",
+      "signal_terms": ["BoQ", "bill of quantities", "cost estimate"],
+      "position": 4
+    }
+  },
+  {
+    "model": "experts.experttype",
+    "pk": "bid-evaluation-expert",
+    "fields": {
+      "name": "Bid Evaluation Expert",
+      "parent": "procurement-and-contract",
+      "signal_terms": ["bid evaluation report", "evaluation committee"],
+      "position": 5
+    }
+  },
+  {
+    "model": "experts.experttype",
+    "pk": "supply-chain-logistics-specialist",
+    "fields": {
+      "name": "Supply Chain / Logistics Specialist",
+      "parent": "procurement-and-contract",
+      "signal_terms": ["customs clearance", "Incoterms"],
+      "position": 6
+    }
+  },
+
+  {
+    "model": "experts.experttype",
+    "pk": "finance-economics-audit",
+    "fields": {
+      "name": "Finance, economics and audit",
+      "parent": null,
+      "signal_terms": [],
+      "position": 3
+    }
+  },
+  {
+    "model": "experts.experttype",
+    "pk": "financial-management-specialist",
+    "fields": {
+      "name": "Financial Management Specialist",
+      "parent": "finance-economics-audit",
+      "signal_terms": [
+        "IPSAS",
+        "interim financial report",
+        "designated account"
+      ],
+      "position": 1
+    }
+  },
+  {
+    "model": "experts.experttype",
+    "pk": "financial-analyst",
+    "fields": {
+      "name": "Financial Analyst / Modeller",
+      "parent": "finance-economics-audit",
+      "signal_terms": ["FIRR", "WACC", "financial model"],
+      "position": 2
+    }
+  },
+  {
+    "model": "experts.experttype",
+    "pk": "economist",
+    "fields": {
+      "name": "Economist",
+      "parent": "finance-economics-audit",
+      "signal_terms": ["EIRR", "cost-benefit analysis", "economic analysis"],
+      "position": 3
+    }
+  },
+  {
+    "model": "experts.experttype",
+    "pk": "tariff-regulatory-economist",
+    "fields": {
+      "name": "Tariff / Regulatory Economist",
+      "parent": "finance-economics-audit",
+      "signal_terms": ["tariff study", "cost of service", "RAB"],
+      "position": 4
+    }
+  },
+  {
+    "model": "experts.experttype",
+    "pk": "auditor",
+    "fields": {
+      "name": "Auditor / Internal Control",
+      "parent": "finance-economics-audit",
+      "signal_terms": ["ISA", "audit of project financial statements"],
+      "position": 5
+    }
+  },
+  {
+    "model": "experts.experttype",
+    "pk": "fiduciary-integrity-specialist",
+    "fields": {
+      "name": "Fiduciary / Integrity Specialist",
+      "parent": "finance-economics-audit",
+      "signal_terms": ["fiduciary review", "anti-corruption", "INT"],
+      "position": 6
+    }
+  },
+
+  {
+    "model": "experts.experttype",
+    "pk": "environmental-and-social",
+    "fields": {
+      "name": "Environmental and social (safeguards)",
+      "parent": null,
+      "signal_terms": [],
+      "position": 4
+    }
+  },
+  {
+    "model": "experts.experttype",
+    "pk": "es-safeguards-specialist",
+    "fields": {
+      "name": "E&S Safeguards Specialist",
+      "parent": "environmental-and-social",
+      "signal_terms": [
+        "ESS1-ESS10",
+        "ESF",
+        "IFC Performance Standards",
+        "ADB SPS 2009"
+      ],
+      "position": 1
+    }
+  },
+  {
+    "model": "experts.experttype",
+    "pk": "esia-specialist",
+    "fields": {
+      "name": "ESIA / EIA Specialist",
+      "parent": "environmental-and-social",
+      "signal_terms": ["ESIA", "scoping report", "baseline survey"],
+      "position": 2
+    }
+  },
+  {
+    "model": "experts.experttype",
+    "pk": "esmp-specialist",
+    "fields": {
+      "name": "ESMP / ESMS Specialist",
+      "parent": "environmental-and-social",
+      "signal_terms": ["ESMP", "management system", "corrective action plan"],
+      "position": 3
+    }
+  },
+  {
+    "model": "experts.experttype",
+    "pk": "resettlement-specialist",
+    "fields": {
+      "name": "Resettlement / Land Acquisition Specialist",
+      "parent": "environmental-and-social",
+      "signal_terms": [
+        "RAP",
+        "LARP",
+        "involuntary resettlement",
+        "cut-off date",
+        "entitlement matrix"
+      ],
+      "position": 4
+    }
+  },
+  {
+    "model": "experts.experttype",
+    "pk": "social-development-specialist",
+    "fields": {
+      "name": "Social Development Specialist",
+      "parent": "environmental-and-social",
+      "signal_terms": ["social assessment", "vulnerable groups"],
+      "position": 5
+    }
+  },
+  {
+    "model": "experts.experttype",
+    "pk": "gender-specialist",
+    "fields": {
+      "name": "Gender Specialist",
+      "parent": "environmental-and-social",
+      "signal_terms": [
+        "GAP",
+        "gender action plan",
+        "gender-based violence",
+        "SEA/SH"
+      ],
+      "position": 6
+    }
+  },
+  {
+    "model": "experts.experttype",
+    "pk": "stakeholder-engagement-specialist",
+    "fields": {
+      "name": "Stakeholder Engagement / GRM Specialist",
+      "parent": "environmental-and-social",
+      "signal_terms": [
+        "SEP",
+        "grievance redress mechanism",
+        "public consultation"
+      ],
+      "position": 7
+    }
+  },
+  {
+    "model": "experts.experttype",
+    "pk": "indigenous-peoples-specialist",
+    "fields": {
+      "name": "Indigenous Peoples Specialist",
+      "parent": "environmental-and-social",
+      "signal_terms": ["ESS7", "FPIC", "indigenous peoples plan"],
+      "position": 8
+    }
+  },
+  {
+    "model": "experts.experttype",
+    "pk": "ohs-hse-specialist",
+    "fields": {
+      "name": "OHS / HSE Specialist",
+      "parent": "environmental-and-social",
+      "signal_terms": ["occupational health and safety", "EHS Guidelines"],
+      "position": 9
+    }
+  },
+  {
+    "model": "experts.experttype",
+    "pk": "biodiversity-specialist",
+    "fields": {
+      "name": "Biodiversity / Ecology Specialist",
+      "parent": "environmental-and-social",
+      "signal_terms": ["critical habitat", "biodiversity action plan"],
+      "position": 10
+    }
+  },
+  {
+    "model": "experts.experttype",
+    "pk": "climate-change-specialist",
+    "fields": {
+      "name": "Climate Change / Resilience Specialist",
+      "parent": "environmental-and-social",
+      "signal_terms": [
+        "climate risk screening",
+        "adaptation",
+        "GHG",
+        "Paris alignment"
+      ],
+      "position": 11
+    }
+  },
+  {
+    "model": "experts.experttype",
+    "pk": "labour-specialist",
+    "fields": {
+      "name": "Labour / Working Conditions Specialist",
+      "parent": "environmental-and-social",
+      "signal_terms": ["ESS2", "labour management procedures"],
+      "position": 12
+    }
+  },
+
+  {
+    "model": "experts.experttype",
+    "pk": "legal-and-regulatory",
+    "fields": {
+      "name": "Legal and regulatory",
+      "parent": null,
+      "signal_terms": [],
+      "position": 5
+    }
+  },
+  {
+    "model": "experts.experttype",
+    "pk": "legal-counsel-infrastructure",
+    "fields": {
+      "name": "Legal Counsel (Infrastructure)",
+      "parent": "legal-and-regulatory",
+      "signal_terms": ["legal due diligence", "loan agreement"],
+      "position": 1
+    }
+  },
+  {
+    "model": "experts.experttype",
+    "pk": "ppp-concession-lawyer",
+    "fields": {
+      "name": "PPP / Concession Lawyer",
+      "parent": "legal-and-regulatory",
+      "signal_terms": [
+        "concession agreement",
+        "PPP framework",
+        "bankability"
+      ],
+      "position": 2
+    }
+  },
+  {
+    "model": "experts.experttype",
+    "pk": "public-procurement-law-expert",
+    "fields": {
+      "name": "Public Procurement Law Expert",
+      "parent": "legal-and-regulatory",
+      "signal_terms": ["procurement law reform", "UNCITRAL Model Law"],
+      "position": 3
+    }
+  },
+  {
+    "model": "experts.experttype",
+    "pk": "regulatory-reform-specialist",
+    "fields": {
+      "name": "Regulatory Reform Specialist",
+      "parent": "legal-and-regulatory",
+      "signal_terms": ["regulatory impact assessment", "licensing regime"],
+      "position": 4
+    }
+  },
+  {
+    "model": "experts.experttype",
+    "pk": "land-property-law-expert",
+    "fields": {
+      "name": "Land / Property Law Expert",
+      "parent": "legal-and-regulatory",
+      "signal_terms": ["land code", "cadastre", "title registration"],
+      "position": 5
+    }
+  },
+  {
+    "model": "experts.experttype",
+    "pk": "compliance-aml-specialist",
+    "fields": {
+      "name": "Compliance / AML Specialist",
+      "parent": "legal-and-regulatory",
+      "signal_terms": ["sanctions screening", "debarment", "KYC"],
+      "position": 6
+    }
+  }
+]

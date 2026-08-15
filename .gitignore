@@ -1,0 +1,84 @@
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+.coverage.*
+
+# ---- Django ----
+*.sqlite3
+*.sqlite3-journal
+media/
+staticfiles/
+static_root/
+*.log
+
+# ---- Harvested documents ----
+# Multi-megabyte binaries mirrored from borrower sites, content-addressed by
+# SHA-256. Not source: back this directory up as data, do not commit it.
+data/harvest/
+
+# ---- Research material ----
+# Downloaded World Bank PDFs and real tender documents (see research/*.md).
+# The notes and the gold set are tracked; the binaries are not.
+research/regulations/
+research/sbd/
+research/samples/
+research/screenshots/
+
+# ---- Celery ----
+celerybeat-schedule*
+celerybeat.pid
+
+# ---- Node / Frontend ----
+node_modules/
+dist/
+dist-ssr/
+.vite/
+*.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ---- Env / secrets ----
+.env
+.env.*
+!.env.example
+
+# ---- Docker ----
+docker-compose.override.yml
+
+# ---- Sourcing output ----
+# Candidate CSVs written by the discovery scripts: names of real people,
+# scraped and not yet verified. They are the reason apps/sourcing has no
+# endpoint that could leak them (D21) — committing one would leak them
+# permanently instead, into a history no deletion reaches.
+out/
+
+# ---- Internal working notes ----
+# Team coordination and orientation notes for whoever picks the repository up
+# next. Kept beside the checkout rather than in it, so a reader is never
+# choosing between two overlapping accounts.
+NOTES.md
+TEAM.md
+
+# ---- Editors / OS ----
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db

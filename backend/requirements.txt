@@ -1,0 +1,52 @@
+Django>=5.2,<5.3
+djangorestframework>=3.16,<3.17
+django-filter>=25.1
+django-cors-headers>=4.7,<5.0
+psycopg[binary]>=3.2,<4.0
+dj-database-url>=3.0,<4.0
+python-dotenv>=1.1,<2.0
+celery[redis]>=5.5,<6.0
+redis>=6.0,<7.0
+requests>=2.32,<3.0
+bleach>=6.2,<7.0
+# Document harvesting: text extraction from the TOR / bidding documents a
+# notice links to. Both degrade gracefully — a missing parser marks the
+# document as unreadable rather than failing the harvest.
+pypdf>=5.1,<7.0
+python-docx>=1.1,<2.0
+# Line-level geometry for the highlight viewer: which rectangle on which page a
+# requirement's quote sits in (`apps/compliance/spans.py`). pypdf reads the text
+# and cannot say where it was; this reads both. Optional at runtime for the same
+# reason as the parsers above — a build without it serves the criteria with no
+# highlights rather than failing the page.
+pdfplumber>=0.11,<1.0
+# Optional at runtime: AI features degrade gracefully without an API key.
+# Either provider can serve the web-search enrichment; Gemini is here for
+# its free tier, which bundles the Google Search grounding.
+anthropic>=0.116,<1.0
+google-genai>=1.0,<2.0
+# Semantic index (apps/rag_indexer). The vector store is a local container and
+# the client is the only way to reach it — but every call is wrapped so a build
+# without this package, or a container that is down, degrades the search to the
+# Postgres full-text fallback rather than failing the request.
+# Kept in step with the `qdrant/qdrant` image tag in docker-compose.yml — the
+# client warns on every call once server and client drift by more than a minor.
+qdrant-client>=1.19,<2.0
+# Reranking (apps/rag_indexer/services/rerank.py) is **deliberately not
+# installed**. The `local` backend wants `sentence-transformers`, which pulls
+# torch and roughly two gigabytes into every image this project builds — a
+# decision about the deployment, not about the code, and D59 leaves it to the
+# CTO. `RAG_RERANK_BACKEND=local` degrades to no reranking on a build without
+# it, which is the whole reason the seam exists:
+#
+#     sentence-transformers>=3.0,<6.0
+#
+# The `cohere` backend needs no package at all — it is one `requests` call —
+# only a key and an answer to the question of whether a reader's question may
+# be sent to a third party this codebase has not asked about.
+#
+# Progress bar for the once-off archive import. Optional at runtime: without it
+# the command logs a line every few hundred sources instead of failing.
+tqdm>=4.66,<5.0
+gunicorn>=23.0,<24.0
+whitenoise>=6.9,<7.0

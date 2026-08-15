@@ -1,0 +1,44 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<h1>Import corrected categories</h1>
+
+<p>
+  Upload a file produced by <strong>“Export selected for category review”</strong>
+  on the notice list. Only <code>notice_id</code>, <code>category</code> and
+  <code>subcategory</code> are read — every other column is ignored, so you can
+  keep your own working notes in the sheet.
+</p>
+
+<ul>
+  <li>A row whose values already match is <strong>not written at all</strong>, so
+      re-uploading an unedited export changes nothing.</li>
+  <li>One bad value <strong>rejects the whole file</strong> rather than applying
+      half of it.</li>
+  <li>A row you correct is recorded as <code>manual</code>, which outranks the
+      rules, the agent review and the AI path — nothing automatic will undo it.</li>
+</ul>
+
+<form method="post" enctype="multipart/form-data">
+  {% csrf_token %}
+  <p><input type="file" name="file" accept=".csv,text/csv" required></p>
+  <p><input type="submit" class="default" value="Import"></p>
+</form>
+
+<h2>Directions</h2>
+<p>Any notice may carry one of these.</p>
+<table>
+  <thead><tr><th>value</th><th>meaning</th></tr></thead>
+  <tbody>
+  {% for value, label in categories %}<tr><td><code>{{ value }}</code></td><td>{{ label }}</td></tr>{% endfor %}
+  </tbody>
+</table>
+
+<h2>Sub-directions</h2>
+<p><strong>Consulting only.</strong> A value here on any other direction is cleared on import.</p>
+<table>
+  <thead><tr><th>value</th><th>meaning</th></tr></thead>
+  <tbody>
+  {% for value, label in subcategories %}<tr><td><code>{{ value }}</code></td><td>{{ label }}</td></tr>{% endfor %}
+  </tbody>
+</table>
+{% endblock %}
